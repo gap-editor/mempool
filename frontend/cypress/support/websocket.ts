@@ -121,40 +121,63 @@ export const emitMempoolInfo = ({
 	params
 }: { params?: any } = {}) => {
 	cy.window().then((win) => {
-		//TODO: Refactor to take into account different parameterized mocking scenarios
-		switch (params.network) {
-			//TODO: Use network specific mocks
-			case "signet":
-			case "testnet":
-			case "mainnet":
-			default:
-				break;
+		// Determine the network prefix, default to 'mainnet'
+		let networkPrefix = 'mainnet';
+		if (params?.network && ['mainnet', 'testnet', 'signet'].includes(params.network)) {
+			networkPrefix = params.network;
+		} else {
+			// Optionally log a warning if an unexpected network is provided
+			console.warn(`Unexpected or missing network parameter: ${params?.network}. Defaulting to 'mainnet'.`);
 		}
 
 		switch (params.command) {
 			case "init": {
-				win.mockSocket.send('{"conversions":{"USD":32365.338815782445}}');
-				cy.readFile('cypress/fixtures/mainnet_live2hchart.json', 'utf-8').then((fixture) => {
+				// Send initial conversion rate (assuming this might not be network specific, or handle separately if needed)
+				win.mockSocket.send('{\"conversions\":{\"USD\":32365.338815782445}}');
+
+				// Load network-specific live chart data
+				const liveChartFixturePath = `cypress/fixtures/${networkPrefix}_live2hchart.json`;
+				cy.readFile(liveChartFixturePath, 'utf-8').then((fixture) => {
 					win.mockSocket.send(JSON.stringify(fixture));
+				}).catch((err) => {
+					console.error(`Error reading fixture ${liveChartFixturePath}:`, err);
+					// Handle error appropriately, maybe send a default response or fail the test
 				});
-				cy.readFile('cypress/fixtures/mainnet_mempoolInfo.json', 'utf-8').then((fixture) => {
+
+				// Load network-specific mempool info
+				const mempoolInfoFixturePath = `cypress/fixtures/${networkPrefix}_mempoolInfo.json`;
+				cy.readFile(mempoolInfoFixturePath, 'utf-8').then((fixture) => {
 					win.mockSocket.send(JSON.stringify(fixture));
+				}).catch((err) => {
+					console.error(`Error reading fixture ${mempoolInfoFixturePath}:`, err);
+					// Handle error appropriately
 				});
 				break;
 			}
 			case "rbfTransaction": {
-				cy.readFile('cypress/fixtures/mainnet_rbf.json', 'utf-8').then((fixture) => {
+				// Load network-specific RBF data
+				const rbfFixturePath = `cypress/fixtures/${networkPrefix}_rbf.json`;
+				cy.readFile(rbfFixturePath, 'utf-8').then((fixture) => {
 					win.mockSocket.send(JSON.stringify(fixture));
+				}).catch((err) => {
+					console.error(`Error reading fixture ${rbfFixturePath}:`, err);
+					// Handle error appropriately
 				});
 				break;
 			}
 			case 'trackTx': {
+				// Assuming trackTx might be network-agnostic or needs specific handling
+				// If network specific, construct path like: `cypress/fixtures/${networkPrefix}_track_tx.json`
 				cy.readFile('cypress/fixtures/track_tx.json', 'utf-8').then((fixture) => {
 					win.mockSocket.send(JSON.stringify(fixture));
+				}).catch((err) => {
+					console.error(`Error reading fixture cypress/fixtures/track_tx.json:`, err);
+					// Handle error appropriately
 				});
 				break;
 			}
 			default:
+				console.warn(`Unknown command: ${params.command}`);
 				break;
 		}
 	});
